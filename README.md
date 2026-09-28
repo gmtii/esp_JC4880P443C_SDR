@@ -1,8 +1,8 @@
 # ESP32-P4 SDR (JC4880P443CIW + RTL-SDR)
 
 A standalone software-defined receiver built on the Guition JC4880P443CIW
-board. It combines an ESP32-P4, a 7" 1024x600 touch display, 32 MB of PSRAM
-and 16 MB of flash. An **800x480** screen profile is also available. 
+board. It combines an ESP32-P4, a 4.3" 800x480 touch display, 32 MB of PSRAM
+and 16 MB of flash.
 An RTL-SDR Blog V4, connected over USB Host, is the RF
 front end. The radio decodes FT8, DMR and AIS on its own, with no PC.
 
@@ -141,17 +141,6 @@ Requires ESP-IDF v5.5.
 
 Binary time and grid frames from `time_sync_sdr101.py` are accepted on the
 same port.
-
-## Host tests
-
-Plain gcc, no ESP-IDF needed:
-
-- `test/host`: FT8. WAV corpus, DT calibration and band-sync simulation.
-- `test/host_dmr`: DMR. FEC cross-checked against dsd-fme, a real repeater
-  capture, synthetic signals, and bit-exact AMBE comparison.
-- `test/host_ais`: AIS. Synthesizer validated with AIS-catcher, plus a
-  sensitivity sweep.
-- `test/host_rtl`: the NCO and the tuning-logic model.
 
 ## Documentation
 
