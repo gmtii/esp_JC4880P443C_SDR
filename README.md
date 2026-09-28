@@ -1,13 +1,14 @@
-# ESP32-P4 SDR (JC1060P470CIWY + RTL-SDR)
+# ESP32-P4 SDR (JC4880P443CIW + RTL-SDR)
 
-A standalone software-defined receiver built on the Guition JC1060P470CIWY
+A standalone software-defined receiver built on the Guition JC4880P443CIW
 board. It combines an ESP32-P4, a 7" 1024x600 touch display, 32 MB of PSRAM
-and 16 MB of flash. An **800x480** screen profile is also available. An RTL-SDR Blog V4, connected over USB Host, is the RF
+and 16 MB of flash. An **800x480** screen profile is also available. 
+An RTL-SDR Blog V4, connected over USB Host, is the RF
 front end. The radio decodes FT8, DMR and AIS on its own, with no PC.
 
 ## Hardware
 
-- **Board:** JC1060P470CIWY. ESP32-P4 at 360 MHz, MIPI-DSI display, GT911
+- **Board:** JC4880P443CIW. ESP32-P4 at 360 MHz, MIPI-DSI display, GT911
   touch, rotary encoder.
 - **RF:** RTL-SDR Blog V4 on the USB Host port, driven by `esp_rtl_sdr`. The
   dongle runs at 960 kS/s and is decimated on the board (CIC, drift
