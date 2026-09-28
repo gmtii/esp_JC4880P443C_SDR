@@ -1,0 +1,50 @@
+V3c LF/HF Q-branch capture evidence - 2026-09-14
+
+Device
+  USB descriptor: Realtek RTL2838UHIDIR
+  Serial: 00000001
+  Tuner family: R820T2/R860 profile
+  Host path: USBPcap4, official Windows rtl_sdr/rtl_tcp behavior
+
+Observed cold direct-sampling tunes
+  RF Hz       RTL2832 22-bit NCO
+  60000       0x3fddde
+  135600      0x3fb2dc
+  147300      0x3fac34
+  472500      0x3ef334
+  1000123     0x3dc70b
+  10000000    0x29c71d
+  20000000    0x138e39
+  23999999    0x0aaaab
+
+Captured arithmetic
+  nco = (0x400000 - floor(rf_hz * 2^22 / 28800000)) & 0x3fffff
+
+Observed normal -> direct transition
+  Existing tuner cleanup records 0..13, then demod writes/read-settles:
+  page 1: 0x1a=0x00, 0x15=0x00
+  page 0: 0x08=0x4d, 0x06=0x90
+  I2C repeater off, then page-1 NCO registers 0x19/0x1a/0x1b.
+
+Observed direct -> normal transition
+  Existing tuner initialization records 363..419, remapped to tuner I2C 0x34;
+  restore V3 matched IF 0x19/0x1a/0x1b = 0x38/0x11/0x12; then page 1
+  0x15=0x01 and page 0 0x06=0x80 before the normal tuner PLL tune.
+
+Raw capture SHA-256 (raw pcapng files retained outside the repository)
+  v3c-direct-60000-20260914.pcapng       71812ac4a24165a73cc064578d8aecc5adfeb9ea7ece5d24648dee329a83497d
+  v3c-direct-135600-20260914.pcapng      40c4414750a29a5ae369b796900d127d015c3645cc7663d6b9d3029a11c127de
+  v3c-direct-147300-20260914.pcapng      ad4d65525ad9aa7205252a2861a0b3917473bf0fb18f3209033617b82409e168
+  v3c-direct-472500-20260914.pcapng      51e7ff1a5ae7f14ae9a8efe5024c0682858bfef457c4bf12f25e7ee214bf2dd3
+  v3c-direct-1000123-20260914.pcapng     5ec7a903a549d4e9366b3a61c7b2ff6b59554d5595e291178126ea7bb0e0598e
+  v3c-direct-10000000-20260914.pcapng    d3d35914673d5afe874bf2ae2f30140b7210d2b64f2abbd6befd5d17bac9293c
+  v3c-direct-20000000-20260914.pcapng    982ec963f7ff3792452644cc9adab2aebe005cf37330854ab11cee3a41db953c
+  v3c-direct-23999999-20260914.pcapng    d54e9d9299098ac3e248b9b70649cef1cd00d245c435c94634141e49435d877a
+  v3c-hot-mode-transitions-20260914.pcapng bfd9420569c489523fc09db80f322743495510411cd37770718b0152233962ad
+  v3c-normal-96100000-20260914.pcapng    ee791a12fea0cfa5a11639129edbe9a6da99bf4c37da7a55012f50ed3b25cf0e
+
+Evidence boundary
+  The PC host reported Q-input direct sampling, accepted each exact frequency,
+  and read bulk IQ. This supports clean-room control sequencing and arithmetic.
+  It does not establish signal identity, sensitivity, image behavior, ESP32-P4
+  USB stability, antenna suitability, DDH47 reception, or decoder performance.

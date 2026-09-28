@@ -1,0 +1,99 @@
+# Automated gates:
+# 1) Host policy unit tests (no IDF)
+# 2) Truth / version hygiene
+# 3) ESP-IDF ESP32-P4 compile of examples/p4_serial_smoke (no hardware)
+
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-policy:
+    name: host policy unit tests
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ ninja-build
+
+      - name: Configure & build (Linux)
+        if: runner.os == 'Linux'
+        working-directory: tests/host
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+          ./build/esp_rtl_sdr_host_tests
+
+      - name: Configure & build (Windows)
+        if: runner.os == 'Windows'
+        working-directory: tests/host
+        shell: pwsh
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --config Debug
+          ctest --test-dir build -C Debug --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  truth-hygiene:
+    name: truth / version hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run hygiene script
+        run: |
+          chmod +x tests/scripts/check_truth_hygiene.sh
+          ./tests/scripts/check_truth_hygiene.sh
+
+  idf-p4-build:
+    name: ESP-IDF P4 compile (${{ matrix.idf_ver }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Match OrcSDR Tab5 floor (IDF 5.5.x); build the same pin OrcSDR locks
+        idf_ver: ["v5.5.4"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build p4_serial_smoke for esp32p4
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: ${{ matrix.idf_ver }}
+          target: esp32p4
+          path: examples/p4_serial_smoke
+          command: idf.py build
+
+      - name: Show binary size (if present)
+        if: success()
+        working-directory: examples/p4_serial_smoke
+        run: |
+          if [ -f build/esp_rtl_sdr_p4_smoke.bin ]; then
+            ls -la build/esp_rtl_sdr_p4_smoke.bin build/esp_rtl_sdr_p4_smoke.elf
+          else
+            find build -name '*.elf' -o -name '*.bin' | head -20
+          fi
+
+  ci-ok:
+    name: ci ok
+    needs: [host-policy, truth-hygiene, idf-p4-build]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "all required CI jobs passed"

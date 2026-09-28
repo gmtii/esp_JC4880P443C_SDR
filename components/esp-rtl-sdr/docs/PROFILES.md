@@ -1,0 +1,70 @@
+# Device profiles — esp_rtl_sdr
+
+## Concept
+
+A **profile** is a measured package of identity rules + USB control sequences +
+tuner policy for one dongle class. The core host client stays shared.
+
+**esp_rtl_sdr is becoming a general RTL2832U-class SDR driver.** These dongles
+share the RTL2832U USB chip; profiles capture board/tuner differences (Blog V4
+R828D + HF routing vs R820T2/R860 without V4 HF). Capability-driven —
+**no user picker**.
+
+**Identity is not tuner family is not board front-end.** Sharing an R820T2/R860
+I2C address does not imply the same init, GPIO, or HF path.
+
+Plug-and-play: the driver selects the profile; apps read
+`esp_rtl_sdr_get_profile()` and `esp_rtl_sdr_get_device_capabilities()`.
+
+Default until identified (and after detach): **`Unknown`** — never Blog V4.
+
+## Active profiles
+
+### `blog_v4` (RTL-SDR Blog V4 / R828D) — PRIMARY
+
+| Field | Value |
+|---|---|
+| Status | **Implemented** (tables in-tree); HF route composition from 0.7.15 / PR #18 |
+| USB | VID `0x0BDA` PID `0x2838` + exact `RTLSDRBlog` / `Blog V4` |
+| Tuner | R828D @ I2C `0x74` |
+| HF | RF<28.8 MHz -> LO+28.8e6; RF<=28.8 MHz -> Cable-2 + GPIO5-low |
+| Caps | Full library set including STREAM, HF_UPCONVERTER, GAIN, BIAS_TEE |
+| Hardware | Maintainer can soak Blog V4; GPIO/RF acceptance still open |
+
+### `nooelec_smart_v5` (NESDR SMArt v5 / R820T2-R860) — PROVISIONAL
+
+| Field | Value |
+|---|---|
+| Status | **Provisional** — contributor-tested; maintainer soak pending |
+| USB | Shared `0bda:2838` + exact `Nooelec` + product contains `NESDR SMArt v5` |
+| Tuner | R820T2/R860 @ I2C `0x34` (mapped from Blog V4 IR records) |
+| HF | **Rejected** below 24 MHz; no V4 HF routing |
+| Caps | STREAM/RETUNE/etc. without HF_UPCONVERTER / GAIN / BIAS_TEE |
+| Evidence | Contributor/OrcSDR tester reports; clean-room remap only; community soak welcome |
+
+### `blog_v3` (RTL-SDR Blog V3 / V3c / R820T2 / R860) — IDENTIFICATION, STREAMING, AND MATCHED-IF TUNING VERIFIED
+
+| Field | Value |
+|---|---|
+| Status | Identification, streaming, and 3.570 MHz matched-IF tuning **hardware-verified** (2026-09-11/12, real V3c unit, R860 tuner per packaging). Physical checks covered 96.1 MHz, 99.1 MHz with matching RDS, cold start, hot retune, V3c/V4 hotplug in both directions, USB-powered boot, battery-powered boot, and the Blog V4 regression. Gain accuracy remains provisional. |
+| USB | Exact V3 descriptors, or completed R820T2 chip-id `0x96`/`0x69` on ambiguous `0bda:2838` (the tested V3c unit reports the bare factory `RTL2838UHIDIR` descriptor, not `RTLSDRBlog`/`Blog V3` — identified via the ambiguous-descriptor chip-id probe, not string match) |
+| Tuner | R820T2/R860 @ I2C `0x34` (same USB IR template remap as Nooelec provisional; R860 is pin/register-compatible with R820T2, same profile covers both — no separate profile needed) |
+| HF/LF | Below 24 MHz uses first-party-capture-derived RTL2832 Q-branch direct sampling; **no** V4 HF upconverter / Cable-2 / GPIO5 |
+| Caps | STREAM/RETUNE/etc. plus provisional manual GAIN and DIRECT_SAMPLING; without HF_UPCONVERTER / GAIN_AUTO / RTL_AGC / BIAS_TEE. Tuner gain setters are unsupported while direct sampling bypasses the tuner. |
+| IF evidence | Official-driver capture measured the V3c PLL IF at 3.570 MHz and ended RTL2832 setup with `0x19/0x1A/0x1B = 0x38/0x11/0x12`, including a settle read after each write. The driver now restores that exact demodulator sequence after sample-rate setup and before the first tune. V4 stays on its existing matched 1.814972 MHz path; Nooelec is unchanged. |
+| Evidence | Probe recovered from `agent/blog-v3-profile` / `d870740`. Identification/streaming verified via repeated cold-boot and hot-swap testing (V4 ↔ V3-family, both directions) with zero crashes. The matched-IF fix passes both host suites, truth hygiene, ESP-IDF 5.5.4 ESP32-P4 compile, and physical V3c/V4 tuning acceptance. Manual-gain calibration remains open. |
+
+## Fail closed
+
+- Unknown / non-matching `0bda:2838` -> not accepted (not Blog V4).
+- Do not claim interface half-way on reject.
+- Hotplug detach clears profile, caps, and V4 front-end shadows.
+
+## Profile checklist (new dongle class)
+
+1. Record USB descriptor strings and VID/PID.
+2. Capture full init + one tune + one rate change + cleanup.
+3. Note expected STALLs (if any) with indices.
+4. Implement profile module; do **not** reuse another board's front-end blindly.
+5. Soak on ESP32-P4 HS host.
+6. Document here + `PROJECT_TRUTH.md` with honest evidence labels.

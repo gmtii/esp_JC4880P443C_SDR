@@ -1,5 +1,9 @@
 ## IDF Component Manager Manifest File
 dependencies:
   lvgl/lvgl:
-    version: 9.3.*
+    version: 9.2.*
     public: true
+  espressif/esp_lcd_jd9165: "*"
+  espressif/esp-dsp: ^1.7.0
+  espressif/knob: ^1.0.1
+  espressif/button: '*'
