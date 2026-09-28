@@ -20,3 +20,19 @@ menu "SDR: DMR"
             shows the measured vocoder time per 20 ms frame ("voc").
 
 endmenu
+
+menu "SDR: Display"
+
+    choice UI_LAYOUT
+        prompt "Screen layout"
+        default UI_LAYOUT_1024x600
+        help
+            Geometry profile of the user interface (see main/include/ui_layout.h).
+
+        config UI_LAYOUT_1024x600
+            bool "1024 x 600 (JC1060P470CIWY, original design)"
+        config UI_LAYOUT_800x480
+            bool "800 x 480"
+    endchoice
+
+endmenu

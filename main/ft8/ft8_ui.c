@@ -19,14 +19,14 @@ extern int demod_modo;
 uint16_t fft_color_map(uint8_t v); /* ui.c - SDR++ "classic" palette LUT */
 
 /* ---- Geometry (panel-relative) ---------------------------------------- */
-#define PANEL_W 1024
-#define PANEL_H (WAVEFORM_HEIGHT + WATERFALL_HEIGHT) /* 320: exactly the area it covers */
+#define PANEL_W UI_SCREEN_W
+#define PANEL_H UI_PANEL_H /* exactly the spectrum + waterfall area (ui_layout.h) */
 
 #define STATUS_Y 4
 #define SCALE_Y 32
 #define CASCADE_Y 50
-#define CASCADE_W 1024 /* = FT8_ADAPTER_NUM_BINS (256) * 4 px */
-#define CASCADE_H 96   /* rows; one row per 320 ms -> ~30 s (two FT8 slots) */
+#define CASCADE_W (FT8_ADAPTER_NUM_BINS * UI_FT8_PX_PER_BIN) /* 1024 px (4/bin) or 768 px (3/bin) */
+#define CASCADE_H UI_FT8_CASCADE_H /* rows; one row per 320 ms (96 rows ~30 s, 64 rows ~20 s) */
 #define CASCADE_PX_PER_BIN (CASCADE_W / FT8_ADAPTER_NUM_BINS)
 #define TEXT_Y_NORMAL (CASCADE_Y + CASCADE_H + 4)
 #define TEXT_Y_EXPANDED CASCADE_Y

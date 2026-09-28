@@ -10,6 +10,7 @@ extern "C"
 #include <stdbool.h>
 #include <stdlib.h>
 #include "esp_err.h"
+#include "ui_layout.h"
 
 #define SAMPLE_BUFFER_SIZE (1024)
 
@@ -17,7 +18,7 @@ extern "C"
 #define SAMPLE_RATE (48000)
 #define FREQ_CONV_OFFSET (SAMPLE_RATE / DR)
 
-#define WAVEFORM_WIDTH SAMPLE_BUFFER_SIZE
+#define WAVEFORM_WIDTH UI_SPEC_W /* display width; the FFT stays at SAMPLE_BUFFER_SIZE bins (ui_layout.h) */
 
 /*
  * One sdrTask() iteration's worth of wide-mode I/Q: chosen so it spans exactly
@@ -33,8 +34,8 @@ extern "C"
  * to the same +-1.0-ish full-scale convention every other demod_out value uses. */
 #define WFM_MAX_DEVIATION_HZ 75000.0f
 
-#define WAVEFORM_HEIGHT 192
-#define WATERFALL_HEIGHT 128
+#define WAVEFORM_HEIGHT UI_WAVEFORM_H
+#define WATERFALL_HEIGHT UI_WATERFALL_H
 
 #define DEMOD_USB 0
 #define DEMOD_LSB 1

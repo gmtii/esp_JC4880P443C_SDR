@@ -14,7 +14,6 @@
 #include "esp_memory_utils.h"
 #include "esp_dsp.h"
 #include "lvgl.h"
-
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
 #include "bsp_board_extra.h"
@@ -47,11 +46,8 @@ const char *demod_modos_texto[8] = {
     "SAM ",
     "S-L ",
     "S-U ",
-    "FM  ",
-    "WFM ",
-    "FT8",
-    "DMR",
-    "AIS" // 10
+    "FM  ", // 6
+    "WFM "  // 7
 };
 
 const char *pasos_texto[7] = {
@@ -220,7 +216,6 @@ void create_knob()
 
 void app_main(void)
 {
-
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {

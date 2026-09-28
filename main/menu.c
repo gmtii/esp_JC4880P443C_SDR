@@ -27,6 +27,7 @@
 
 #include "palettes.h"
 #include "menu.h"
+#include "ui_layout.h"
 
 #include "lvgl.h"
 #include <stdio.h>
@@ -315,25 +316,6 @@ static void palette_btn_label(void)
     }
 }
 
-/* AIS: enter/leave the AIS receiver (ui.c: 162.000 MHz, WFM wide path). */
-static lv_obj_t *btn14_ais = NULL;
-
-static void ais_btn_label(void)
-{
-    lv_obj_t *lbl = (btn14_ais != NULL) ? lv_obj_get_child(btn14_ais, 0) : NULL;
-    if (lbl != NULL)
-    {
-        lv_label_set_text(lbl, ui_ais_is_active() ? "AIS\nON" : "AIS\nOFF");
-    }
-}
-
-static void btn14_cb(lv_event_t *e)
-{
-    if (lv_event_get_code(e) != LV_EVENT_CLICKED)
-        return;
-    ui_ais_toggle();
-}
-
 static void btn13_cb(lv_event_t *e)
 {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED)
@@ -363,8 +345,6 @@ static void btn12_cb(lv_event_t *e)
         row_sliders = NULL;
         grid_btns = NULL;
         btn13_palette = NULL;
-        btn14_ais = NULL;
-        ui_ais_set_state_callback(NULL);
 
         box_s1 = sl_s1 = NULL;
         box_s2 = sl_s2 = NULL;
@@ -394,7 +374,7 @@ static void create_slider_block(lv_obj_t *parent,
                                 lv_obj_t **out_label)
 {
     lv_obj_t *box = lv_obj_create(parent);
-    lv_obj_set_size(box, 225, 120);
+    lv_obj_set_size(box, UI_MENU_SLIDER_BOX_W, UI_MENU_SLIDER_BOX_H);
     lv_obj_set_style_pad_all(box, 12, 0);
     lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(box,
@@ -427,7 +407,7 @@ static lv_obj_t *create_button(lv_obj_t *parent,
                                lv_event_cb_t cb)
 {
     lv_obj_t *btn = lv_btn_create(parent);
-    lv_obj_set_size(btn, 140, 60);
+    lv_obj_set_size(btn, UI_MENU_BTN_W, UI_MENU_BTN_H);
     lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_set_style_bg_color(btn, lv_color_hex(0x202020), LV_PART_MAIN);
@@ -452,7 +432,7 @@ void ui_create_control_panel(void)
 
     /* ---------- Contenedor principal ---------- */
     cont_menu = lv_obj_create(menu_scr);
-    lv_obj_set_size(cont_menu, 1024, 500);
+    lv_obj_set_size(cont_menu, UI_MENU_W, UI_MENU_H);
     lv_obj_center(cont_menu);
     lv_obj_set_style_pad_all(cont_menu, 16, 0);
 
@@ -471,7 +451,7 @@ void ui_create_control_panel(void)
     /* ---------- Fila de sliders ---------- */
     row_sliders = lv_obj_create(cont_menu);
     lv_obj_set_width(row_sliders, lv_pct(100));
-    lv_obj_set_height(row_sliders, 190);
+    lv_obj_set_height(row_sliders, UI_MENU_SLIDERS_H);
     lv_obj_set_style_pad_all(row_sliders, 0, 0);
     lv_obj_set_style_border_width(row_sliders, 0, 0);
 
@@ -490,13 +470,14 @@ void ui_create_control_panel(void)
 
     /* ---------- Botonera (3 filas: 6 + 6 + PALETTE) ----------
      * Height and row gap set explicitly so the third row fits:
-     * 3 x 60 px buttons + 2 x 10 px gaps = 200 px, inside the 500 px panel
-     * (16 px padding x 2 + 190 px sliders + column gap + this grid). */
+     * 3 rows of UI_MENU_BTN_H buttons + 2 gaps, inside the UI_MENU_H panel
+     * (padding + sliders row + column gap + this grid) - values per screen
+     * profile in ui_layout.h. */
     grid_btns = lv_obj_create(cont_menu);
     lv_obj_set_width(grid_btns, lv_pct(100));
-    lv_obj_set_height(grid_btns, 210);
+    lv_obj_set_height(grid_btns, UI_MENU_GRID_H);
     lv_obj_set_style_pad_all(grid_btns, 0, 0);
-    lv_obj_set_style_pad_row(grid_btns, 10, 0);
+    lv_obj_set_style_pad_row(grid_btns, UI_MENU_GRID_ROW_GAP, 0);
     lv_obj_remove_flag(grid_btns, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_border_width(grid_btns, 0, 0);
 
@@ -535,13 +516,9 @@ void ui_create_control_panel(void)
     btn12_close = create_button(grid_btns, LV_SYMBOL_CLOSE, btn12_cb);
 
     btn13_palette = create_button(grid_btns, "PALETTE", btn13_cb);
-    lv_obj_set_width(btn13_palette, 180); /* room for "Temper Colors" */
+    lv_obj_set_width(btn13_palette, UI_MENU_PALETTE_W); /* room for "Temper Colors" */
     lv_obj_set_style_text_align(lv_obj_get_child(btn13_palette, 0), LV_TEXT_ALIGN_CENTER, 0);
     palette_btn_label();
-    btn14_ais = create_button(grid_btns, "AIS", btn14_cb);
-    lv_obj_set_style_text_align(lv_obj_get_child(btn14_ais, 0), LV_TEXT_ALIGN_CENTER, 0);
-    ais_btn_label();
-    ui_ais_set_state_callback(ais_btn_label);
 }
 
 /* ------------------------------------------------------------------------------- */
@@ -612,9 +589,9 @@ static void freq_btnm_event_cb(lv_event_t *e)
 
     if (strcmp(txt, LV_SYMBOL_OK) == 0)
     {
-        //uint32_t hz = parse_freq(lv_textarea_get_text(ta_freq), 1e6);
-        //if (hz)
-        //    currentVFO.Frec = hz;
+        uint32_t hz = parse_freq(lv_textarea_get_text(ta_freq), 1e6);
+        if (hz)
+            currentVFO.Frec = hz;
         refresca_VFO();
         rtl_source_set_freq(currentVFO.Frec - lo_offset_for_mode(demod_modo));
         freq_popup_close();
@@ -650,7 +627,7 @@ void freq_label_event_cb(lv_event_t *e)
         lv_timer_pause(timer_smeter);
 
     freq_popup = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(freq_popup, 520, 300);
+    lv_obj_set_size(freq_popup, UI_FREQ_POPUP_W, UI_FREQ_POPUP_H);
     lv_obj_center(freq_popup);
     lv_obj_set_style_pad_all(freq_popup, 12, 0);
 
@@ -671,7 +648,7 @@ void freq_label_event_cb(lv_event_t *e)
 
     btnm_freq = lv_btnmatrix_create(freq_popup);
     lv_btnmatrix_set_map(btnm_freq, map);
-    lv_obj_set_size(btnm_freq, lv_pct(100), 220);
+    lv_obj_set_size(btnm_freq, lv_pct(100), UI_FREQ_POPUP_BTNM_H);
     lv_obj_align(btnm_freq, LV_ALIGN_BOTTOM_MID, 0, 0);
 
     lv_obj_add_event_cb(btnm_freq, freq_btnm_event_cb,

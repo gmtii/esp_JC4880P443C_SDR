@@ -59,19 +59,9 @@ static char *TAG = "UI";
  * themselves change, so none of the buffer/DSP sizing code that depends on them
  * elsewhere is affected - this is a pure repositioning.
  */
-#define UI_BUTTON_ROW_H 80 /* was 60: taller (70 px) buttons now, see UI_CTRL_BTN_H */
-#define UI_CTRL_BTN_W 150
-#define UI_CTRL_BTN_H 70
-#define UI_CTRL_BTN_GAP 20
-#define UI_SPECTRUM_TOP_Y (600 - UI_BUTTON_ROW_H - WATERFALL_HEIGHT - WAVEFORM_HEIGHT)
-
-/* Top-left info block (S-meter is 335x125, at its usual 0,0): frequency and mode
- * text sit to its right, roughly matching the S-meter's own vertical span. */
-#define UI_FREQ_X 360
-#define UI_FREQ_Y 15
-#define UI_MODE_X 360
-#define UI_MODE_Y 90
-#define UI_BADGE_ROW_Y 140 /* single row, right below the info block */
+/* Button row, header and badge geometry now come from ui_layout.h (screen
+ * profile selected in menuconfig): UI_BUTTON_ROW_H, UI_CTRL_BTN_W/H/GAP,
+ * UI_SPECTRUM_TOP_Y, UI_FREQ_X/Y, UI_MODE_X/Y, UI_BADGE_ROW_Y. */
 #define UI_CLOCK_X_MARGIN 10
 #define UI_CLOCK_Y 10
 
@@ -338,6 +328,58 @@ static inline int smooth5(const int16_t *p, int x)
   return (64 * p[x] + 23 * (p[x - 1] + p[x + 1]) + 9 * (p[x - 2] + p[x + 2])) >> 7;
 }
 
+/*
+ * Screen column -> spectrum value. The FFT has SAMPLE_BUFFER_SIZE (1024) bins;
+ * the canvas is WAVEFORM_WIDTH px (ui_layout.h). At 1024 px this is exactly
+ * the old per-bin smooth5(); on a narrower screen each column takes the MAX
+ * of the (smoothed) bins it covers, so narrow or weak signals are not lost
+ * the way plain decimation would lose them. Used for both the new and the old
+ * trace, so the incremental erase stays consistent.
+ */
+static inline int16_t spec_col(const int16_t *pix, int x)
+{
+#if WAVEFORM_WIDTH == SAMPLE_BUFFER_SIZE
+  return smooth5(pix, x);
+#else
+  int b0 = x * SAMPLE_BUFFER_SIZE / WAVEFORM_WIDTH;
+  int b1 = (x + 1) * SAMPLE_BUFFER_SIZE / WAVEFORM_WIDTH;
+  int16_t m;
+  if (b0 < 2)
+    b0 = 2; /* smooth5 reads +-2 bins */
+  if (b1 > SAMPLE_BUFFER_SIZE - 2)
+    b1 = SAMPLE_BUFFER_SIZE - 2;
+  if (b1 <= b0)
+    b1 = b0 + 1;
+  m = smooth5(pix, b0);
+  for (int b = b0 + 1; b < b1; b++)
+  {
+    int16_t v = smooth5(pix, b);
+    if (v > m)
+      m = v;
+  }
+  return m;
+#endif
+}
+
+/* Same mapping for the waterfall (raw bins, no smoothing). */
+static inline uint8_t wf_col(int x)
+{
+#if WAVEFORM_WIDTH == SAMPLE_BUFFER_SIZE
+  return (uint8_t)abs(pixelnew[x]);
+#else
+  int b0 = x * SAMPLE_BUFFER_SIZE / WAVEFORM_WIDTH;
+  int b1 = (x + 1) * SAMPLE_BUFFER_SIZE / WAVEFORM_WIDTH;
+  int m = abs(pixelnew[b0]);
+  for (int b = b0 + 1; b < b1; b++)
+  {
+    int v = abs(pixelnew[b]);
+    if (v > m)
+      m = v;
+  }
+  return (uint8_t)m;
+#endif
+}
+
 void spectrum(void)
 {
 
@@ -350,14 +392,14 @@ void spectrum(void)
 #define MARGEN_DERECHO 2
 #define MARGEN_IZQUIERDO 2
 
-  for (int16_t x = MARGEN_IZQUIERDO; x < SAMPLE_BUFFER_SIZE - MARGEN_DERECHO; x++)
+  for (int16_t x = MARGEN_IZQUIERDO; x < WAVEFORM_WIDTH - MARGEN_DERECHO; x++)
   {
 
     // moving window - weighted average of 5 points of the spectrum to smooth spectrum in the frequency domain
-    // weights:  x: 50% , x-1/x+1: 36%, x+2/x-2: 14%
+    // weights:  x: 50% , x-1/x+1: 36%, x+2/x-2: 14%   (per screen column: see spec_col())
 
-    y_new = smooth5(pixelnew, x);
-    y_old = smooth5(pixelold, x);
+    y_new = spec_col(pixelnew, x);
+    y_old = spec_col(pixelold, x);
 
     if (y_old > (spectrum_height - 1))
     {
@@ -382,7 +424,7 @@ void spectrum(void)
       y1_old_minus = y1_old;
       y1_new_minus = y1_new;
     }
-    if (x == SAMPLE_BUFFER_SIZE - MARGEN_DERECHO)
+    if (x == WAVEFORM_WIDTH - MARGEN_DERECHO)
     {
       y1_old_minus = y1_old;
       y1_new_minus = y1_new;
@@ -420,7 +462,7 @@ void spectrum(void)
     y1_old_minus = y1_old;
   }
 
-  for (int16_t x = 0; x < SAMPLE_BUFFER_SIZE; x += 128)
+  for (int16_t x = 0; x < W; x += W / 8) /* 8 divisions of 6 kHz, whatever the width */
   {
     lv_draw_vline(x, 0, H, 0x31A6);
   }
@@ -465,17 +507,17 @@ typedef struct
 } ft8_band_t;
 
 static const ft8_band_t k_ft8_bands[] = {
-    {1800000, 2000000, 1840000},     /* 160 m */
-    {3500000, 4000000, 3573000},     /* 80 m */
-    {5250000, 5450000, 5357000},     /* 60 m */
-    {7000000, 7300000, 7074000},     /* 40 m */
-    {10100000, 10150000, 10136000},  /* 30 m */
-    {14000000, 14350000, 14074000},  /* 20 m */
-    {18068000, 18168000, 18100000},  /* 17 m */
-    {21000000, 21450000, 21074000},  /* 15 m */
-    {24890000, 24990000, 24915000},  /* 12 m */
-    {28000000, 29700000, 28074000},  /* 10 m */
-    {50000000, 54000000, 50313000},  /* 6 m */
+    {1800000, 2000000, 1840000},       /* 160 m */
+    {3500000, 4000000, 3573000},       /* 80 m */
+    {5250000, 5450000, 5357000},       /* 60 m */
+    {7000000, 7300000, 7074000},       /* 40 m */
+    {10100000, 10150000, 10136000},    /* 30 m */
+    {14000000, 14350000, 14074000},    /* 20 m */
+    {18068000, 18168000, 18100000},    /* 17 m */
+    {21000000, 21450000, 21074000},    /* 15 m */
+    {24890000, 24990000, 24915000},    /* 12 m */
+    {28000000, 29700000, 28074000},    /* 10 m */
+    {50000000, 54000000, 50313000},    /* 6 m */
     {144000000, 148000000, 144174000}, /* 2 m */
 };
 
@@ -550,7 +592,7 @@ static void ft8_mode_toggle(void)
     }
     rtl_source_set_freq(currentVFO.Frec - lo_offset_for_mode(demod_modo));
 
-    lv_label_set_text_fmt(label_modos, "FT8 %s", demod_modos_texto[demod_modo]);
+    lv_label_set_text_fmt(label_modos, "%s", demod_modos_texto[demod_modo]);
     dibuja_pasabanda();
     refresca_indicadores();
 
@@ -612,7 +654,7 @@ static void dmr_mode_toggle(void)
       rtl_source_set_gain_db(menu_get_rtl_gain_db());
     }
     rtl_source_set_freq(currentVFO.Frec - lo_offset_for_mode(demod_modo));
-    lv_label_set_text_fmt(label_modos, "DMR %s", demod_modos_texto[demod_modo]);
+    lv_label_set_text_fmt(label_modos, "%s", demod_modos_texto[demod_modo]);
     dibuja_pasabanda();
     refresca_indicadores();
 
@@ -650,7 +692,7 @@ static void ais_apply_tuning(uint32_t f, int mode)
     rtl_source_set_gain_db(menu_get_rtl_gain_db());
   }
   rtl_source_set_freq(currentVFO.Frec - lo_offset_for_mode(demod_modo));
-  lv_label_set_text_fmt(label_modos, "AIS %s", demod_modos_texto[demod_modo]);
+  lv_label_set_text_fmt(label_modos, "%s", demod_modos_texto[demod_modo]);
   dibuja_pasabanda();
   refresca_indicadores();
 }
@@ -913,21 +955,21 @@ void dibuja_botones(void)
   add_name_value_labels(btn_modos, "MODE", &label_modos);
   lv_label_set_text_fmt(label_modos, "%s", demod_modos_texto[demod_modo]);
 
-  /* --- Botón Step: "STEP" / current step value --- */
-  btn_step = lv_btn_create(screen);
-  style_ctrl_button(btn_step);
-  lv_obj_align(btn_step, LV_ALIGN_BOTTOM_LEFT, 10 + 2 * (UI_CTRL_BTN_W + UI_CTRL_BTN_GAP), -10);
-
-  add_name_value_labels(btn_step, "STEP", &label_step);
-  lv_label_set_text_fmt(label_step, "%d", pasos[pasos_indice]);
-
   /* --- Botón AIS (antes FILTER): "AIS" / ON|OFF - filters stay in the menu --- */
   btn_filtros = lv_btn_create(screen);
   style_ctrl_button(btn_filtros);
-  lv_obj_align(btn_filtros, LV_ALIGN_BOTTOM_LEFT, 10 + 3 * (UI_CTRL_BTN_W + UI_CTRL_BTN_GAP), -10);
+  lv_obj_align(btn_filtros, LV_ALIGN_BOTTOM_LEFT, 10 + 2 * (UI_CTRL_BTN_W + UI_CTRL_BTN_GAP), -10);
 
   add_name_value_labels(btn_filtros, "AIS", &label_filtros);
   lv_label_set_text(label_filtros, "OFF");
+
+  /* --- Botón Step: "STEP" / current step value --- */
+  btn_step = lv_btn_create(screen);
+  style_ctrl_button(btn_step);
+  lv_obj_align(btn_step, LV_ALIGN_BOTTOM_LEFT, 10 + 3 * (UI_CTRL_BTN_W + UI_CTRL_BTN_GAP), -10);
+
+  add_name_value_labels(btn_step, "STEP", &label_step);
+  lv_label_set_text_fmt(label_step, "%d", pasos[pasos_indice]);
 
   /* --- Botón FT8: "FT8" / ON|OFF --- */
   btn_ft8 = lv_btn_create(screen);
@@ -1120,7 +1162,7 @@ static void spectrum_drag_cb(lv_event_t *e)
   drag_accum_px -= steps * SPECTRUM_DRAG_PX_PER_STEP;
 
   currentVFO.Frec -= steps * pasos[pasos_indice]; /* inverted from the encoder's "+=": drag right now lowers frequency */
-  update_vfo_label(); /* NOT refresca_VFO(): already inside an LVGL callback, see its comment */
+  update_vfo_label();                             /* NOT refresca_VFO(): already inside an LVGL callback, see its comment */
 
   const int64_t now_us = esp_timer_get_time();
   if (now_us - last_retune_us >= SPECTRUM_DRAG_RETUNE_MIN_US)
@@ -1268,7 +1310,7 @@ void waterfall_update(void)
   uint16_t *row_b = &waterfallbuffer[(waterfall_head + WATERFALL_HEIGHT) * WAVEFORM_WIDTH];
   for (int x = 0; x < WAVEFORM_WIDTH; x++)
   {
-    uint16_t c = fft_color_map((uint8_t)abs(pixelnew[x])); // 0-255 -> RGB565
+    uint16_t c = fft_color_map(wf_col(x)); // 0-255 -> RGB565 (bins mapped to columns)
     row_a[x] = c;
     row_b[x] = c;
   }
@@ -1404,7 +1446,7 @@ void init_ui()
   // timer_cpu = lv_timer_create(timer_uso_cpu, 1000, NULL);
   timer_smeter = lv_timer_create(timer_smeter_update, 33, NULL);
   timer_clock = lv_timer_create(timer_clock_update, 1000, NULL);
-  // timer debounce 
+  // timer debounce
   timer_debounce = lv_timer_create(desbloquear_cb, 300, NULL);
 
   /* TIMERS
@@ -1572,25 +1614,25 @@ void inicia_smeter_ui(void)
   lv_obj_set_style_text_font(smeter_lbl_s, &lv_font_montserrat_26, 0);
   lv_obj_set_style_text_color(smeter_lbl_s, lv_color_hex(smeter_zone_rgb(SMETER_DBM_S0)), 0);
   lv_label_set_text(smeter_lbl_s, "S0");
-  lv_obj_set_pos(smeter_lbl_s, 12, 74);
+  lv_obj_set_pos(smeter_lbl_s, 12, UI_SMETER_S_Y);
 
   smeter_lbl_dbm = lv_label_create(meter_cont);
   lv_obj_set_style_text_font(smeter_lbl_dbm, &lv_font_montserrat_18, 0);
   lv_obj_set_style_text_color(smeter_lbl_dbm, lv_color_hex(0xc8d2dc), 0);
   lv_label_set_text(smeter_lbl_dbm, "--- dBm");
-  lv_obj_align(smeter_lbl_dbm, LV_ALIGN_TOP_RIGHT, -12, 80);
+  lv_obj_align(smeter_lbl_dbm, LV_ALIGN_TOP_RIGHT, -12, UI_SMETER_DBM_Y);
 
   smeter_lbl_peak = lv_label_create(meter_cont);
   lv_obj_set_style_text_font(smeter_lbl_peak, &lv_font_montserrat_12, 0);
   lv_obj_set_style_text_color(smeter_lbl_peak, lv_color_hex(0x8090a0), 0);
   lv_label_set_text(smeter_lbl_peak, "PEAK --");
-  lv_obj_align(smeter_lbl_peak, LV_ALIGN_TOP_RIGHT, -12, 106);
+  lv_obj_align(smeter_lbl_peak, LV_ALIGN_TOP_RIGHT, -12, UI_SMETER_PEAK_Y);
 }
 
 void dibuja_pasabanda(void)
 {
 
-  int margen_alto = currentVFO.f_alta * SAMPLE_BUFFER_SIZE / SAMPLE_RATE;
+  int margen_alto = currentVFO.f_alta * W / SAMPLE_RATE; /* Hz -> screen px (W = display width) */
 
   if (lvgl_port_lock(0))
   {
@@ -1677,13 +1719,13 @@ void indicadores_create(lv_obj_t *parent)
      * Sits right below the top-left info block (see UI_BADGE_ROW_Y). */
     if (i < 10)
     {
-      lv_obj_set_pos(indicadores[i], 10 + i * 70, UI_BADGE_ROW_Y);
-      lv_obj_set_width(indicadores[i], 60);
+      lv_obj_set_pos(indicadores[i], 10 + i * UI_BADGE_SMALL_PITCH, UI_BADGE_ROW_Y);
+      lv_obj_set_width(indicadores[i], UI_BADGE_SMALL_W);
     }
     else
     {
-      lv_obj_set_pos(indicadores[i], 710 + (i - 10) * 110, UI_BADGE_ROW_Y);
-      lv_obj_set_width(indicadores[i], 100);
+      lv_obj_set_pos(indicadores[i], UI_BADGE_BIG_X + (i - 10) * UI_BADGE_BIG_PITCH, UI_BADGE_ROW_Y);
+      lv_obj_set_width(indicadores[i], UI_BADGE_BIG_W);
     }
 
     lv_label_set_text(indicadores[i], "X");

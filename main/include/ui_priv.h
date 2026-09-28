@@ -149,8 +149,8 @@ extern "C"
  */
 #define SMETER_PANEL_X 5
 #define SMETER_PANEL_Y 4
-#define SMETER_PANEL_W 345
-#define SMETER_PANEL_H 128
+#define SMETER_PANEL_W UI_SMETER_PANEL_W
+#define SMETER_PANEL_H UI_SMETER_PANEL_H
 #define SMETER_CANVAS_X 10 /* inside the panel */
 #define SMETER_CANVAS_Y 30
 #define SMETER_LABEL_Y 8

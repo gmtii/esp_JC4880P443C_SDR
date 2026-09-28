@@ -11,6 +11,7 @@
  * S-unit part is stretched, the "+dB" part compressed).
  */
 #pragma once
+#include "ui_layout.h"
 
 #include <stdint.h>
 
@@ -24,7 +25,7 @@ extern "C" {
 #define SMETER_S9_FRAC     0.55f  /* 0.62 made the +40/+60 labels collide */
 
 /* Canvas geometry (pixels) */
-#define SMETER_CANVAS_W    324
+#define SMETER_CANVAS_W    UI_SMETER_CANVAS_W /* ui_layout.h */
 #define SMETER_CANVAS_H    30
 #define SMETER_SEG_PITCH   6         /* 5 px segment + 1 px gap -> 54 segments */
 #define SMETER_SEG_COUNT   (SMETER_CANVAS_W / SMETER_SEG_PITCH)

@@ -15,12 +15,12 @@
 
 extern int demod_modo;
 
-#define PANEL_W 1024
-#define PANEL_H (WAVEFORM_HEIGHT + WATERFALL_HEIGHT) /* 320 */
-#define CARD_W 500
-#define CARD_H 150
+#define PANEL_W UI_SCREEN_W
+#define PANEL_H UI_PANEL_H
+#define CARD_W ((PANEL_W - 24) / 2) /* two cards side by side */
+#define CARD_H UI_DMR_CARD_H
 #define CARD_Y 30
-#define LOG_Y (CARD_Y + CARD_H + 8)
+#define LOG_Y (CARD_Y + CARD_H + 6)
 #define STALE_MS 1500 /* a slot with no valid burst for this long is shown as quiet */
 
 #if defined(LV_FONT_MONTSERRAT_46) && LV_FONT_MONTSERRAT_46
@@ -181,7 +181,7 @@ static void log_update(const dmr_demod_status_t *ds)
     int n = dmr_proto_get_log(e);
     static char buf[DMR_LOG_LEN * 96];
     int pos = 0;
-    const int show = 6;
+    const int show = (PANEL_H - LOG_Y) / 18 < 6 ? (PANEL_H - LOG_Y) / 18 : 6; /* lines that fit */
 
     if (n == 0 || e[n - 1].seq == s_log_seq_shown)
     {
@@ -312,10 +312,10 @@ void dmr_ui_create(lv_obj_t *parent, int top_y)
         lv_obj_remove_flag(c->card, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(c->card, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(c->card, card_click_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
-        c->title = mk_label(c->card, &lv_font_montserrat_18, 12, 8, lv_color_hex(0xC8D2DC));
-        c->big = mk_label(c->card, BIG_FONT, 12, 34, lv_color_white());
-        c->src = mk_label(c->card, &lv_font_montserrat_18, 12, 90, lv_color_hex(0xC8D2DC));
-        c->alias = mk_label(c->card, &lv_font_montserrat_18, 12, 116, lv_color_hex(0x60FF90));
+        c->title = mk_label(c->card, &lv_font_montserrat_18, 12, UI_DMR_Y_TITLE, lv_color_hex(0xC8D2DC));
+        c->big = mk_label(c->card, BIG_FONT, 12, UI_DMR_Y_BIG, lv_color_white());
+        c->src = mk_label(c->card, &lv_font_montserrat_18, 12, UI_DMR_Y_SRC, lv_color_hex(0xC8D2DC));
+        c->alias = mk_label(c->card, &lv_font_montserrat_18, 12, UI_DMR_Y_ALIAS, lv_color_hex(0x60FF90));
     }
 
     s_log = mk_label(s_panel, LOG_FONT, 8, LOG_Y, lv_color_hex(0xB0C0D0));

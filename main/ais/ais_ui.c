@@ -14,17 +14,17 @@
 
 extern int demod_modo;
 
-#define PANEL_W 1024
-#define PANEL_H (WAVEFORM_HEIGHT + WATERFALL_HEIGHT) /* 320 */
-#define MAP 320
+#define PANEL_W UI_SCREEN_W
+#define PANEL_H UI_PANEL_H
+#define MAP UI_PANEL_H /* square radar: 320 or 240 px */
 #define LIST_X (MAP + 12)
-#define LIST_ROWS 12
+#define LIST_ROWS UI_AIS_LIST_ROWS
 #define STALE_MS 600000u /* vessels not heard for 10 min are dropped from the view */
 
 /* Vessel list as an lv_table with fixed column widths (px): columns line up
  * whatever the font - padded printf columns only worked with a monospaced one. */
 enum { COL_NAME, COL_CL, COL_SOG, COL_COG, COL_DIST, COL_BRG, COL_AGE, NCOLS };
-static const int16_t k_col_w[NCOLS] = {230, 56, 70, 64, 100, 64, 70}; /* = 654 px */
+static const int16_t k_col_w[NCOLS] = UI_AIS_COL_W; /* per screen profile (ui_layout.h) */
 static const char *const k_col_title[NCOLS] = {"NAME / MMSI", "CL", "SOG", "COG", "DIST", "BRG", "AGE"};
 
 #define LIST_FONT (&lv_font_montserrat_14)
@@ -77,7 +77,7 @@ static void circle(int cx, int cy, int r, uint16_t c)
 }
 
 #define C_BG 0x0841
-#define C_RING 0x061f
+#define C_RING 0xffc0
 #define C_OWN 0xFFFF
 #define C_A 0x07E0
 #define C_B 0x07FF
